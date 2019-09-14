@@ -23,7 +23,6 @@ extern "C" {
     //      1. using process_vm_readv()/process_vm_writev() replace PTRACE_PEEKTEXT/PTRACE_POKETEXT
     //      2. using mmap() to implement VirtualAllocEx() in linux
 
-
 #ifdef __cplusplus
 }
 #endif
