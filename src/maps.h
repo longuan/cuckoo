@@ -1,6 +1,6 @@
 
-#ifndef __UTILS_H__
-#define __UTILS_H__
+#ifndef __MAPS_H__
+#define __MAPS_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,4 +24,4 @@ extern "C" {
 }
 #endif
 
-#endif /*__UTILS_H__*/
+#endif /*__MAPS_H__*/
