@@ -7,10 +7,12 @@ extern "C" {
 #endif
 
     int ptraceAttach(pid_t pid);
+    int ptraceDetach(pid_t pid);
     int ptraceGetRegs(pid_t pid, regs_type *regs);
-    int ptraceSetRegs();
-    int ptraceGetMems(pid_t pid, long address, char *data, size_t data_len);
+    int ptraceSetRegs(pid_t pid, regs_type *regs);
+    int ptraceGetMems(pid_t pid, long address, unsigned char *data, size_t data_len);
     int ptraceSetMems();
+    int ptraceCont(pid_t pid);
 
 #ifdef __cplusplus
 }

@@ -12,7 +12,7 @@ process_memory_item* mapsParse(pid_t target_pid)
     if(maps_file == NULL) oops("open maps file error ", CUCKOO_RESOURCE_ERROR);
     
     process_memory_item *head, *tmp, *tmp_prev;
-    head = tmp = tmp_prev = malloc(sizeof(process_memory_item));
+    head = tmp = tmp_prev = (process_memory_item *)malloc(sizeof(process_memory_item));
     if(tmp == NULL) oops("malloc error ", CUCKOO_RESOURCE_ERROR);
     char line[128];
     if((fgets(line, 128, maps_file)) == NULL) oops("fgets error ", CUCKOO_DEFAULT_ERROR);
