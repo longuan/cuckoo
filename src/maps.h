@@ -7,8 +7,8 @@ extern "C" {
 #endif
 
     typedef struct process_memory_item{
-        long start_addr;
-        long end_addr;
+        unsigned long start_addr;
+        unsigned long end_addr;
         char permission[4];
         int reserve;
         struct process_memory_item *next;

@@ -11,3 +11,11 @@ int getNameByPid(char *name, size_t name_len, pid_t pid)
         oops("fgets error ", CUCKOO_RESOURCE_ERROR);
     return CUCKOO_OK;
 }
+
+size_t lengthAlign(size_t len)
+{
+    if(len%sizeof(long) == 0) 
+        return len;
+    else
+        return (len/sizeof(long)+1)*sizeof(long);
+}
