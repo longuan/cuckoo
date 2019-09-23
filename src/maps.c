@@ -1,51 +1,80 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "utils.h"
 #include "maps.h"
 
-process_memory_item* mapsParse(pid_t target_pid)
+#define MAXLEN 128
+
+maps_item* mapsParse(pid_t target_pid)
 {
+
     char filename[24];
     snprintf(filename, 24, "/proc/%d/maps", target_pid);
     FILE *maps_file = fopen(filename, "r");
     if(maps_file == NULL) oops("open maps file error ", CUCKOO_RESOURCE_ERROR);
     
-    process_memory_item *head, *tmp, *tmp_prev;
-    head = tmp = tmp_prev = (process_memory_item *)malloc(sizeof(process_memory_item));
+    maps_item *head, *tmp, *tmp_prev;
+    head = tmp = tmp_prev = (maps_item *)malloc(sizeof(maps_item));
     if(tmp == NULL) oops("malloc error ", CUCKOO_RESOURCE_ERROR);
     char line[128];
     if((fgets(line, 128, maps_file)) == NULL) oops("fgets error ", CUCKOO_DEFAULT_ERROR);
 
     do{
-        sscanf(line, "%lx-%lx %s %*s %*s", &tmp->start_addr,
-                &tmp->end_addr, &tmp->permission);
+        tmp->elf_name = (char *)malloc(MAXLEN);
+        memset(tmp->elf_name, 0, MAXLEN);
+        sscanf(line, "%lx-%lx %4s %*s %*s %*s %127s", &tmp->start_addr,
+                &tmp->end_addr, &tmp->permission, tmp->elf_name);
         tmp_prev->next = tmp;
         tmp->next = NULL;
         tmp_prev = tmp;
-    } while((fgets(line, 128, maps_file))!= NULL && (tmp=malloc(sizeof(process_memory_item)))!=NULL);
+    } while((fgets(line, 128, maps_file))!= NULL &&\
+            (tmp=(maps_item *)malloc(sizeof(maps_item)))!=NULL);
 
     fclose(maps_file);
     return head;
 }
 
 
-void destory(process_memory_item *list)
+void destoryList(maps_item *list)
 {
-    process_memory_item *tmp = list;
-    while(tmp)
+    maps_item *tmp;
+    while(list)
     {
-        free(tmp);
-        tmp = tmp->next;
+        if(list->elf_name) free(list->elf_name);
+        tmp = list->next;
+        free(list);
+        list = tmp;
     }
 }
 
-void print_item(process_memory_item *list)
+void printItem(maps_item *list)
 {
-    process_memory_item *tmp = list;
-    while(tmp)
+    while(list)
     {
-        printf("%lx-%lx %s\n", tmp->start_addr, tmp->end_addr, tmp->permission);
-        tmp = tmp->next;
+        printf("%lx-%lx %s %s\n", list->start_addr, list->end_addr,\
+                                  list->permission, list->elf_name);
+        list = list->next;
     }
+}
+
+static maps_item *getAttrAddr(maps_item *list, char c)
+{
+    while(list)
+    {
+        if(strchr(list->permission, c) != NULL) return list;
+        list = list->next;
+    }
+    return NULL;
+}
+
+maps_item *getFilenameContain(maps_item *list, char *str)
+{
+    while(list)
+    {
+        if(strstr(list->elf_name, str)) return list;
+        list = list->next;
+    }
+    return NULL;
 }

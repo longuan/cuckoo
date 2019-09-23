@@ -6,16 +6,10 @@ int getNameByPid(char *name, size_t name_len, pid_t pid)
 {
     char cmdline_filename[32];
     snprintf(cmdline_filename, 32, "/proc/%d/cmdline", pid);
+
     FILE *cmdline_file = fopen(cmdline_filename, "r");
     if((fgets(name, name_len, cmdline_file)) == NULL) 
         oops("fgets error ", CUCKOO_RESOURCE_ERROR);
-    return CUCKOO_OK;
-}
 
-size_t lengthAlign(size_t len)
-{
-    if(len%sizeof(long) == 0) 
-        return len;
-    else
-        return (len/sizeof(long)+1)*sizeof(long);
+    return CUCKOO_OK;
 }

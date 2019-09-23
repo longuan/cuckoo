@@ -23,8 +23,6 @@ typedef struct user_regs_struct regs_type;
 #include <sys/types.h>
 int getNameByPid(char *name, size_t name_len, pid_t pid);
 
-size_t lengthAlign(size_t len);
-
 #ifdef __cplusplus
 }
 #endif

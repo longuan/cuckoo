@@ -10,30 +10,6 @@
 
 #define DATA_ALIGN 8
 
-static process_memory_item *getAttrAddr(process_memory_item *list, char c)
-{
-    process_memory_item *addr_item = NULL;
-    while(list)
-    {
-        if(strchr(list->permission, c) != NULL) {
-            addr_item = list;
-            break;
-        }
-        list = list->next;
-    }
-    return addr_item;
-}
-
-static inline process_memory_item *getWritableAddr(process_memory_item *list)
-{
-    return getAttrAddr(list, 'w');
-}
-
-static inline process_memory_item *getExecutableAddr(process_memory_item *list)
-{
-    return getAttrAddr(list, 'x');
-}
-
 
 static void getMemAndPrint(pid_t target_pid, unsigned long addr, size_t len)
 {
@@ -63,7 +39,7 @@ static void setMemAndPrint(pid_t target_pid, unsigned long addr, unsigned char*d
 }
 
 
-static void cuckoo_main(pid_t target_pid)
+static void inject_shellcode(pid_t target_pid)
 {
     ptraceAttach(target_pid);
     
@@ -75,9 +51,8 @@ static void cuckoo_main(pid_t target_pid)
     if(new_regs == NULL) oops("malloc error ", CUCKOO_SYSTEM_ERROR);
     memcpy(new_regs, &old_regs, sizeof(regs_type));
 
-    process_memory_item *list = mapsParse(target_pid);
-
-    process_memory_item *addr_item = getExecutableAddr(list);
+    maps_item *list = mapsParse(target_pid);
+    maps_item *addr_item = getExecutableAddr(list);
     size_t shellcode_len = SHELLCODE_SIZE;
     unsigned char *new_shellcode = (unsigned char *)malloc(shellcode_len);
     memset(new_shellcode, '\x90', shellcode_len);
@@ -93,12 +68,12 @@ static void cuckoo_main(pid_t target_pid)
     new_regs->rip = addr;
     printf("[+] Setting RIP to 0x%llx\n\t", new_regs->rip);
     ptraceSetRegs(target_pid, new_regs);
-    ptraceGetRegs(target_pid, &old_regs);
-    printf("the rip is 0x%llx\n", old_regs.rip);
+    // ptraceGetRegs(target_pid, &old_regs);
+    // printf("the rip is 0x%llx\n", old_regs.rip);
     // ptraceCont(target_pid);
 
     ptraceDetach(target_pid);
-    destory(list);
+    destoryList(list);
     free(new_shellcode);
     free(new_regs);
 }
@@ -111,6 +86,6 @@ int main(int argc, char *argv[])
     }
     
     pid_t target_pid = atoi(argv[1]);
-    cuckoo_main(target_pid);
+    inject_shellcode(target_pid);
     return 0;
 }
