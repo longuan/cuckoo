@@ -65,19 +65,18 @@ int ptraceGetMems(pid_t pid, unsigned long address,unsigned char *data, size_t d
     printf("[+] Getting %lu byte data from 0x%lx\n", data_len, address);
     for(size_t i=0; i<=data_len-sizeof(long); i+=sizeof(long))
     {
-        long word = ptrace(PTRACE_PEEKTEXT, pid, address, NULL);
+        long word = ptrace(PTRACE_PEEKTEXT, pid, address+i, NULL);
         if(word == -1 && errno) oops("ptrace(PEEKTEXT) ", CUCKOO_PTRACE_ERROR);  // errno must be checked
         memcpy(data+i, &word, sizeof(long)); 
     }
     return CUCKOO_OK;
 }
 
-// TODO: make data_len can be arbitrary value
 int ptraceSetMems(pid_t pid, unsigned long address, unsigned char *data, size_t data_len)
 {
     if(data==NULL)
         return CUCKOO_RESOURCE_ERROR;
-
+    /*
     unsigned char *new_data=NULL;
     if(data_len%sizeof(long) != 0)
     {
@@ -91,7 +90,7 @@ int ptraceSetMems(pid_t pid, unsigned long address, unsigned char *data, size_t 
         address = address + data_len - new_len;
         data_len = new_len;
     }
-
+    */
     printf("[+] Setting %lu byte data to 0x%lx\n", data_len, address);
     for(size_t i=0; i<data_len; i+=sizeof(long))
     {
@@ -99,6 +98,6 @@ int ptraceSetMems(pid_t pid, unsigned long address, unsigned char *data, size_t 
         long ret = ptrace(PTRACE_POKETEXT, pid, address+i, *word);
         if(ret == -1 && errno) oops("ptrace(POKETEXT) ", CUCKOO_PTRACE_ERROR);
     }
-    if(new_data) free(new_data);
+    // if(new_data) free(new_data);
     return CUCKOO_OK;
 }
