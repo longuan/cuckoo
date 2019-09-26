@@ -16,6 +16,10 @@ enum {
     CUCKOO_DEFAULT_ERROR
 };
 
+#define ALIGN_LEN 8
+
+void usage(char *prog_name);
+
 #include <sys/reg.h>
 #include <sys/user.h>
 typedef struct user_regs_struct regs_type;

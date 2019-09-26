@@ -7,11 +7,11 @@ extern "C" {
 #endif
 
     typedef struct maps_item_s{
+        struct maps_item_s *next;
         unsigned long start_addr;
         unsigned long end_addr;
         char permission[4];
         char *elf_name;
-        struct maps_item *next;
     } maps_item;
 
     // read /proc/<pid>/maps to get process memory layout
@@ -20,17 +20,9 @@ extern "C" {
 
     void printItem(maps_item *list);
 
-    static maps_item *getAttrAddr(maps_item *list, char c);
-    inline maps_item *getWritableAddr(maps_item *list)
-    {
-        return getAttrAddr(list, 'w');
-    }
-
-    inline maps_item *getExecutableAddr(maps_item *list)
-    {
-        return getAttrAddr(list, 'x');
-    }
-
+    maps_item *getAttrAddr(maps_item *list, char c);
+    maps_item *getWritableAddr(maps_item *list);
+    maps_item *getExecutableAddr(maps_item *list);
     maps_item *getFilenameContain(maps_item *list, char *str);
 #ifdef __cplusplus
 }

@@ -8,8 +8,14 @@ int getNameByPid(char *name, size_t name_len, pid_t pid)
     snprintf(cmdline_filename, 32, "/proc/%d/cmdline", pid);
 
     FILE *cmdline_file = fopen(cmdline_filename, "r");
+    if(cmdline_file == NULL) return CUCKOO_RESOURCE_ERROR;
     if((fgets(name, name_len, cmdline_file)) == NULL) 
         oops("fgets error ", CUCKOO_RESOURCE_ERROR);
 
     return CUCKOO_OK;
+}
+
+void usage(char *prog_name)
+{
+    printf("Usage:\n\t%s <pid>\n", prog_name);
 }

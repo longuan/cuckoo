@@ -10,7 +10,8 @@
 int ptraceAttach(pid_t pid)
 {
     char process_name[128] = {0};
-    getNameByPid(process_name, 128, pid);
+    if(getNameByPid(process_name, 128, pid)==CUCKOO_RESOURCE_ERROR)
+        oops("process not exist", 1);
     if(process_name[0] == '\0')
         oops("can't find process ", CUCKOO_DEFAULT_ERROR);
     printf("[+] attaching target process: %s\n", process_name);

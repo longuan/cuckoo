@@ -59,7 +59,7 @@ void printItem(maps_item *list)
     }
 }
 
-static maps_item *getAttrAddr(maps_item *list, char c)
+maps_item *getAttrAddr(maps_item *list, char c)
 {
     while(list)
     {
@@ -67,6 +67,16 @@ static maps_item *getAttrAddr(maps_item *list, char c)
         list = list->next;
     }
     return NULL;
+}
+
+maps_item *getExecutableAddr(maps_item *list)
+{
+    return getAttrAddr(list, 'x');
+}
+
+maps_item *getwritableAddr(maps_item *list)
+{
+    return getAttrAddr(list, 'w');
 }
 
 maps_item *getFilenameContain(maps_item *list, char *str)
