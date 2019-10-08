@@ -8,7 +8,8 @@ extern "C" {
 
 
 #include <sys/types.h>
-int injectShellcode(pid_t pid, unsigned char *shellcode, size_t shellcode_len);
+#include "cuckoo.h"
+int injectShellcode(cuckoo_context *context, unsigned char *shellcode, size_t shellcode_len);
 
 
 #ifdef __cplusplus

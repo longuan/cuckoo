@@ -26,6 +26,17 @@ extern "C" {
     //
     //   TODO: Death under ptrace  link: http://man7.org/linux/man-pages/man2/ptrace.2.html
 
+    #include <stdlib.h>
+    #include "maps.h"
+    typedef struct cuckoo_context_s {
+        pid_t target_pid;
+        maps_item *mem_maps;
+        int inject_type;
+        void *data;
+    }cuckoo_context;
+    
+    void init_context(cuckoo_context *context, pid_t pid);
+    void clean(cuckoo_context *context);
 #ifdef __cplusplus
 }
 #endif

@@ -3,7 +3,6 @@
 #include <string.h>
 #include <assert.h>
 #include "utils.h"
-#include "maps.h"
 #include "inject.h"
 #include "shellcode.h"
 
@@ -18,19 +17,9 @@ static void setMemAndPrint(pid_t target_pid, unsigned long addr, unsigned char*d
     ptraceSetMems(target_pid, addr, data, len);
 }
 
-static unsigned long getShellcodeStartAddr(pid_t target_pid, size_t shellcode_len)
+int injectShellcode(cuckoo_context *context, unsigned char *shellcode, size_t shellcode_len)
 {
-
-    maps_item *list = mapsParse(target_pid);
-    maps_item *addr_item = getExecutableAddr(list);
-    unsigned long addr = addr_item->end_addr - shellcode_len;
-    printItem(list);
-    destoryList(list);
-    return addr;
-}
-
-int injectShellcode(pid_t target_pid, unsigned char *shellcode, size_t shellcode_len)
-{
+    pid_t target_pid = context->target_pid;
     ptraceAttach(target_pid);
     
     regs_type old_regs;
@@ -45,16 +34,16 @@ int injectShellcode(pid_t target_pid, unsigned char *shellcode, size_t shellcode
     unsigned char *new_shellcode = (unsigned char *)malloc(new_len);
     memset(new_shellcode, '\x90', new_len);
     memcpy(new_shellcode, shellcode, shellcode_len);
-    unsigned long addr = getShellcodeStartAddr(target_pid, new_len);
+    unsigned long shellcode_addr = getExecutableAddr(context->mem_maps)->end_addr-new_len;
     // unsigned long addr = addr_item->end_addr - new_len;
 
-    setMemAndPrint(target_pid, addr, new_shellcode, new_len);
+    setMemAndPrint(target_pid, shellcode_addr, new_shellcode, new_len);
     unsigned char buffer[new_len];
-    ptraceGetMems(target_pid, addr, buffer, new_len);
+    ptraceGetMems(target_pid, shellcode_addr, buffer, new_len);
     assert(!strcmp(buffer, new_shellcode));  // should not use strcmp()
     
     
-    new_regs->rip = addr;
+    new_regs->rip = shellcode_addr;
     printf("[+] Setting RIP to 0x%llx\n\t", new_regs->rip);
     ptraceSetRegs(target_pid, new_regs);
     // ptraceGetRegs(target_pid, &old_regs);
