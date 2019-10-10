@@ -74,12 +74,7 @@ maps_item *getExecutableAddr(maps_item *list)
     return getAttrAddr(list, 'x');
 }
 
-maps_item *getwritableAddr(maps_item *list)
-{
-    return getAttrAddr(list, 'w');
-}
-
-maps_item *getFilenameContain(maps_item *list, char *str)
+maps_item *getELFNameContain(maps_item *list, char *str)
 {
     while(list)
     {

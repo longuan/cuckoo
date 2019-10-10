@@ -21,9 +21,8 @@ extern "C" {
     void printItem(maps_item *list);
 
     maps_item *getAttrAddr(maps_item *list, char c);
-    maps_item *getWritableAddr(maps_item *list);
     maps_item *getExecutableAddr(maps_item *list);
-    maps_item *getFilenameContain(maps_item *list, char *str);
+    maps_item *getELFNameContain(maps_item *list, char *str);
 #ifdef __cplusplus
 }
 #endif

@@ -40,7 +40,8 @@ int injectShellcode(cuckoo_context *context, unsigned char *shellcode, size_t sh
     setMemAndPrint(target_pid, shellcode_addr, new_shellcode, new_len);
     unsigned char buffer[new_len];
     ptraceGetMems(target_pid, shellcode_addr, buffer, new_len);
-    assert(!strcmp(buffer, new_shellcode));  // should not use strcmp()
+    if (compareMems(new_shellcode, buffer, new_len))
+        oops("shellcode write error: ", CUCKOO_PTRACE_ERROR);
     
     
     new_regs->rip = shellcode_addr;

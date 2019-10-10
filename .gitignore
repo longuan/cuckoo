@@ -70,11 +70,13 @@ test/test_runner
 
 ## Local 
 
+.idea/*
 .idea/workspace.xml
 
 build/release/*
 build/debug/*
 build/run/*
+build/bin/*
 
 include/*
 lib/*

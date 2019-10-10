@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
     
     if (injectShellcode(&context, shellcode, shellcode_len) != CUCKOO_OK)
     {
-        oops("error ", 1);
+        oops("error ", CUCKOO_DEFAULT_ERROR);
     }
     clean(&context);
     return 0;

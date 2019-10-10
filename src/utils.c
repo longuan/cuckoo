@@ -19,3 +19,13 @@ void usage(char *prog_name)
 {
     printf("Usage:\n\t%s <pid>\n", prog_name);
 }
+
+
+int compareMems(unsigned char *old, unsigned char *new, size_t len)
+{
+    for (size_t i = 0; i < len; ++i) {
+        if(old[i] != new[i])
+            return 1;
+    }
+    return 0;
+}

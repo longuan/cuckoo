@@ -1,5 +1,4 @@
 #include "cuckoo.h"
-#include "shellcode.h"
 
 
 void init_context(cuckoo_context *context, pid_t target_pid)
