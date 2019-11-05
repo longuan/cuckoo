@@ -17,6 +17,9 @@ enum {
 };
 
 #define ALIGN_LEN 8
+#define INTEL_RET_INSTRUCTION 0xc3
+#define INTEL_INT3_INSTRUCTION 0xcc
+
 
 void usage(char *prog_name);
 
@@ -28,6 +31,9 @@ typedef struct user_regs_struct regs_type;
 int getNameByPid(char *name, size_t name_len, pid_t pid);
 
 int compareMems(unsigned char *old, unsigned char *new, size_t len);
+unsigned long getFunctionAddress(char* func_name);
+unsigned long getLibcaddr(pid_t pid);
+unsigned char* findRet(void* endAddr);
 
 #ifdef __cplusplus
 }

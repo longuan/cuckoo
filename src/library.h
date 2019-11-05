@@ -4,9 +4,10 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif 
+#endif
 
-    int injectLib(pid_t pid);
+#include "cuckoo.h"
+int injectLibrary(cuckoo_context *context);
 
 #ifdef __cplusplus
 }

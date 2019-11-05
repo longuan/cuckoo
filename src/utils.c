@@ -1,5 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <dlfcn.h>
+#include <string.h>
 #include "utils.h"
 
 int getNameByPid(char *name, size_t name_len, pid_t pid)
@@ -28,4 +31,45 @@ int compareMems(unsigned char *old, unsigned char *new, size_t len)
             return 1;
     }
     return 0;
+}
+
+unsigned long getFunctionAddress(char* func_name)
+{
+    void* libc = dlopen("libc.so.6", RTLD_LAZY);
+    void* funcAddr = dlsym(libc, func_name);
+    return (unsigned long)funcAddr;
+}
+
+unsigned long getLibcaddr(pid_t pid)
+{
+    FILE *fp;
+    char filename[30];
+    char line[850];
+    unsigned long addr = 0;
+    char perms[5];
+    char* modulePath;
+    sprintf(filename, "/proc/%d/maps", pid);
+    fp = fopen(filename, "r");
+    if(fp == NULL)
+        exit(1);
+    while(fgets(line, 850, fp) != NULL)
+    {
+        sscanf(line, "%lx-%*lx %*s %*s %*s %*d", &addr);
+        if(strstr(line, "libc-") != NULL)
+        {
+            break;
+        }
+    }
+    fclose(fp);
+    return addr;
+}
+
+unsigned char* findRet(void* endAddr)
+{
+    unsigned char* retInstAddr = endAddr;
+    while(*retInstAddr != INTEL_RET_INSTRUCTION)
+    {
+        retInstAddr--;
+    }
+    return retInstAddr;
 }

@@ -13,7 +13,7 @@ maps_item* mapsParse(pid_t target_pid)
     char filename[24];
     snprintf(filename, 24, "/proc/%d/maps", target_pid);
     FILE *maps_file = fopen(filename, "r");
-    if(maps_file == NULL) oops("open maps file error ", CUCKOO_RESOURCE_ERROR);
+    if(maps_file == NULL) return NULL;
     
     maps_item *head, *tmp, *tmp_prev;
     head = tmp = tmp_prev = (maps_item *)malloc(sizeof(maps_item));
@@ -53,13 +53,13 @@ void printItem(maps_item *list)
 {
     while(list)
     {
-        printf("%lx-%lx %s %s\n", list->start_addr, list->end_addr,\
+        printf("%lux-%lux %s %s\n", list->start_addr, list->end_addr,\
                                   list->permission, list->elf_name);
         list = list->next;
     }
 }
 
-maps_item *getAttrAddr(maps_item *list, char c)
+maps_item *getAttrItem(maps_item *list, char c)
 {
     while(list)
     {
@@ -69,12 +69,12 @@ maps_item *getAttrAddr(maps_item *list, char c)
     return NULL;
 }
 
-maps_item *getExecutableAddr(maps_item *list)
+maps_item *getExecutableItem(maps_item *list)
 {
-    return getAttrAddr(list, 'x');
+    return getAttrItem(list, 'x');
 }
 
-maps_item *getELFNameContain(maps_item *list, char *str)
+maps_item *getItemContainStr(maps_item *list, char *str)
 {
     while(list)
     {

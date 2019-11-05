@@ -12,6 +12,7 @@ extern "C" {
 int injectShellcode(cuckoo_context *context, unsigned char *shellcode, size_t shellcode_len);
 
 
+
 #ifdef __cplusplus
 }
 #endif

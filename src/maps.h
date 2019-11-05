@@ -20,9 +20,9 @@ extern "C" {
 
     void printItem(maps_item *list);
 
-    maps_item *getAttrAddr(maps_item *list, char c);
-    maps_item *getExecutableAddr(maps_item *list);
-    maps_item *getELFNameContain(maps_item *list, char *str);
+    maps_item *getAttrItem(maps_item *list, char c);
+    maps_item *getExecutableItem(maps_item *list);
+    maps_item *getItemContainStr(maps_item *list, char *str);
 #ifdef __cplusplus
 }
 #endif

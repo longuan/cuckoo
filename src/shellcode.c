@@ -34,7 +34,7 @@ int injectShellcode(cuckoo_context *context, unsigned char *shellcode, size_t sh
     unsigned char *new_shellcode = (unsigned char *)malloc(new_len);
     memset(new_shellcode, '\x90', new_len);
     memcpy(new_shellcode, shellcode, shellcode_len);
-    unsigned long shellcode_addr = getExecutableAddr(context->mem_maps)->end_addr-new_len;
+    unsigned long shellcode_addr = getExecutableItem(context->mem_maps)->end_addr-new_len;
     // unsigned long addr = addr_item->end_addr - new_len;
 
     setMemAndPrint(target_pid, shellcode_addr, new_shellcode, new_len);

@@ -32,11 +32,12 @@ extern "C" {
         pid_t target_pid;
         maps_item *mem_maps;
         int inject_type;
-        void *data;
+        char *injected_filename;
     }cuckoo_context;
     
-    void init_context(cuckoo_context *context, pid_t pid);
-    void clean(cuckoo_context *context);
+    int init_context(cuckoo_context *context, pid_t pid);
+    void clean_context(cuckoo_context *context);
+
 #ifdef __cplusplus
 }
 #endif

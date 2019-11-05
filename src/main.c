@@ -1,31 +1,45 @@
+//
+// Created by longuan on 2019/11/5.
+//
 #include <stdio.h>
 #include <stdlib.h>
 #include "utils.h"
-#include "shellcode.h"
 #include "cuckoo.h"
+#include "library.h"
 
 
 int main(int argc, char *argv[])
 {
-    if(argc != 2){
-        usage(argv[0]);
+    if(argc != 3)
+    {
+        printf("Usage:\n\t%s <pid> <lib_path>\n", argv[0]);
         return 0;
     }
-    cuckoo_context context;    
-    pid_t target_pid = atoi(argv[1]);
-    init_context(&context, target_pid);
-    unsigned char shellcode[] = "\x48\x31\xc0\x48\x89\xc2\x48\x89"
-        "\xc6\x48\x8d\x3d\x04\x00\x00\x00"
-        "\x04\x3b\x0f\x05\x2f\x62\x69\x6e"
-        "\x2f\x73\x68\x00\xcc\x90\x90\x90";
 
-    // DO NOT use strlen(), because shellcode has '\x00'
-    size_t shellcode_len = 32; 
-    
-    if (injectShellcode(&context, shellcode, shellcode_len) != CUCKOO_OK)
+
+    pid_t target_pid = atoi(argv[1]);
+    cuckoo_context context;
+    if(init_context(&context, target_pid) != CUCKOO_OK)
+    {
+        printf("no such process!\n");
+        return 1;
+    }
+
+    char* lib_name = argv[2];
+    char* lib_path = realpath(lib_name, NULL);
+    if(!lib_path)
+    oops("lib_path is wrong! ", CUCKOO_RESOURCE_ERROR);
+
+    context.injected_filename = lib_path;
+    char process_name[32];
+    getNameByPid(process_name, 32, target_pid);
+    printf("[*] injecting %s into %s\n", lib_path, process_name);
+
+    if (injectLibrary(&context) != CUCKOO_OK)
     {
         oops("error ", CUCKOO_DEFAULT_ERROR);
     }
-    clean(&context);
+    clean_context(&context);
     return 0;
 }
+

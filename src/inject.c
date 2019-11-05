@@ -4,8 +4,37 @@
 #include <errno.h>
 #include <sys/ptrace.h>
 #include <sys/wait.h>
+#include <time.h>
 #include "utils.h"
 #include "inject.h"
+
+
+static siginfo_t ptrace_getsiginfo(pid_t target)
+{
+    siginfo_t targetsig;
+    if(ptrace(PTRACE_GETSIGINFO, target, NULL, &targetsig) == -1)
+    {
+        fprintf(stderr, "ptrace(PTRACE_GETSIGINFO) failed\n");
+        exit(1);
+    }
+    return targetsig;
+}
+
+static void checktargetsig(int pid)
+{
+    // check the signal that the child stopped with.
+    siginfo_t targetsig = ptrace_getsiginfo(pid);
+
+    // if it wasn't SIGTRAP, then something bad happened (most likely a
+    // segfault).
+    if(targetsig.si_signo != SIGTRAP)
+    {
+        fprintf(stderr, "instead of expected SIGTRAP, target stopped with signal %d: %s\n", targetsig.si_signo, strsignal(targetsig.si_signo));
+        fprintf(stderr, "sending process %d a SIGSTOP signal for debugging purposes\n", pid);
+        ptrace(PTRACE_CONT, pid, NULL, SIGSTOP);
+        exit(1);
+    }
+}
 
 int ptraceAttach(pid_t pid)
 {
@@ -36,9 +65,22 @@ int ptraceDetach(pid_t pid)
 int ptraceCont(pid_t pid)
 {
     printf("[-] continue running\n");
-    if((ptrace(PTRACE_CONT, pid, NULL, NULL)) < 0)
-        oops("ptrace(CONT) ", CUCKOO_PTRACE_ERROR);
-    return CUCKOO_OK;
+
+    struct timespec* sleeptime = malloc(sizeof(struct timespec));
+
+    sleeptime->tv_sec = 0;
+    sleeptime->tv_nsec = 5000000;
+
+    if(ptrace(PTRACE_CONT, pid, NULL, NULL) == -1)
+    {
+        fprintf(stderr, "ptrace(PTRACE_CONT) failed\n");
+        exit(1);
+    }
+
+    nanosleep(sleeptime, NULL);
+
+    // make sure the target process received SIGTRAP after stopping.
+    checktargetsig(pid);
 }
 
 int ptraceGetRegs(pid_t pid, regs_type *regs) 
@@ -64,11 +106,19 @@ int ptraceGetMems(pid_t pid, unsigned long address,unsigned char *data, size_t d
     if(data==NULL || data_len<sizeof(long))
         return CUCKOO_RESOURCE_ERROR;
     printf("[+] Getting %lu byte data from 0x%lx\n", data_len, address);
-    for(size_t i=0; i<=data_len-sizeof(long); i+=sizeof(long))
+    size_t i=0;
+    for(; i<data_len; i+=sizeof(long))
     {
         long word = ptrace(PTRACE_PEEKTEXT, pid, address+i, NULL);
         if(word == -1 && errno) oops("ptrace(PEEKTEXT) ", CUCKOO_PTRACE_ERROR);  // errno must be checked
         memcpy(data+i, &word, sizeof(long)); 
+    }
+    if(i > data_len)
+    {
+        size_t last_word = data_len - sizeof(long);
+        long word = ptrace(PTRACE_PEEKTEXT, pid, address+last_word, NULL);
+        if(word == -1 && errno) oops("ptrace(PEEKTEXT) ", CUCKOO_PTRACE_ERROR);  // errno must be checked
+        memcpy(data+last_word, &word, sizeof(long));
     }
     return CUCKOO_OK;
 }
@@ -77,28 +127,20 @@ int ptraceSetMems(pid_t pid, unsigned long address, unsigned char *data, size_t 
 {
     if(data==NULL)
         return CUCKOO_RESOURCE_ERROR;
-    /*
-    unsigned char *new_data=NULL;
-    if(data_len%sizeof(long) != 0)
-    {
-        size_t new_len = lengthAlign(data_len);
-        new_data = (unsigned char *)malloc(new_len);
-        memcpy(new_data, data, data_len);
-        printf("[+] align data with %lu '\\x90'\n", new_len-data_len);
-        for(size_t i=data_len; i<new_len; i++)
-            new_data[i] = '\x90';
-        data = new_data;
-        address = address + data_len - new_len;
-        data_len = new_len;
-    }
-    */
+
     printf("[-] Setting %lu byte data to 0x%lx\n", data_len, address);
-    for(size_t i=0; i<data_len; i+=sizeof(long))
+    size_t i=0;
+    for(; i<data_len; i+=sizeof(long))
     {
         unsigned long *word = (unsigned long *)&data[i];
         long ret = ptrace(PTRACE_POKETEXT, pid, address+i, *word);
         if(ret == -1 && errno) oops("ptrace(POKETEXT) ", CUCKOO_PTRACE_ERROR);
     }
-    // if(new_data) free(new_data);
+    if(i > data_len)
+    {
+        size_t last_word = data_len-sizeof(long);
+        unsigned long *word = (unsigned long *)&data[last_word];
+        ptrace(PTRACE_POKETEXT, pid, address+last_word, *word);
+    }
     return CUCKOO_OK;
 }
