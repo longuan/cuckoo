@@ -8,7 +8,7 @@
 #include "library.h"
 
 
-int main(int argc, char *argv[])
+int injectlib_main(int argc, char *argv[])
 {
     if(argc != 3)
     {

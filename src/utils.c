@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <dlfcn.h>
 #include <string.h>
 #include "utils.h"
@@ -71,5 +70,32 @@ unsigned char* findRet(void* endAddr)
     {
         retInstAddr--;
     }
+
     return retInstAddr;
+}
+
+void printMem(unsigned char *data, size_t len)
+{
+    for(size_t i=0; i<len; i++)
+    {
+        printf("0x%x ", data[i]);
+    }
+
+    printf("\n");
+}
+
+
+void* searchUint(void *startAddr, void* endAddr, uint32_t pattern)
+{
+    if(startAddr >endAddr || (endAddr-startAddr) < sizeof(uint32_t))
+        return NULL;
+
+    uint32_t *result = (uint32_t *)startAddr;
+    while((void *)result <= (endAddr-sizeof(uint32_t)))
+    {
+        if(*result == pattern)
+            return result;
+        result = (uint32_t *)((char *)result + 1);
+    }
+    return NULL;
 }

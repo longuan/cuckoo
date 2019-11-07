@@ -64,7 +64,6 @@ int ptraceDetach(pid_t pid)
 
 int ptraceCont(pid_t pid)
 {
-    printf("[-] continue running\n");
 
     struct timespec* sleeptime = malloc(sizeof(struct timespec));
 
@@ -76,11 +75,12 @@ int ptraceCont(pid_t pid)
         fprintf(stderr, "ptrace(PTRACE_CONT) failed\n");
         exit(1);
     }
-
+    // wait(NULL);
     nanosleep(sleeptime, NULL);
 
     // make sure the target process received SIGTRAP after stopping.
     checktargetsig(pid);
+    printf("[-] continue running\n");
 }
 
 int ptraceGetRegs(pid_t pid, regs_type *regs) 
@@ -100,9 +100,9 @@ int ptraceSetRegs(pid_t pid, regs_type *regs)
 }
 
 
-// the length of data must greater than sizeof(long)
 int ptraceGetMems(pid_t pid, unsigned long address,unsigned char *data, size_t data_len)
 {
+    // the length of data must greater than sizeof(long)
     if(data==NULL || data_len<sizeof(long))
         return CUCKOO_RESOURCE_ERROR;
     printf("[+] Getting %lu byte data from 0x%lx\n", data_len, address);

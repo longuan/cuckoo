@@ -34,6 +34,10 @@ int compareMems(unsigned char *old, unsigned char *new, size_t len);
 unsigned long getFunctionAddress(char* func_name);
 unsigned long getLibcaddr(pid_t pid);
 unsigned char* findRet(void* endAddr);
+void printMem(unsigned char *data, size_t len);
+
+#include <stdint.h>
+void* searchUint(void *startAddr, void* endAddr, uint32_t pattern);
 
 #ifdef __cplusplus
 }

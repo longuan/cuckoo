@@ -4,8 +4,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/user.h>
-#include <wait.h>
-
 #include "library.h"
 #include "cuckoo.h"
 #include "utils.h"
@@ -14,9 +12,13 @@
 
 void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 {
-    // here are the assumptions I'm making about what data will be located
-    // where at the time the target executes this code:
-    //
+    asm(
+            "nop \n"
+            "nop \n"
+            "nop \n"
+            "nop \n"
+    );
+
     //   rdi = address of malloc() in target process
     //   rsi = address of free() in target process
     //   rdx = address of __libc_dlopen_mode() in target process
@@ -59,7 +61,7 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
     // 1st argument to __libc_dlopen_mode(): filename = the address of the buffer returned by malloc()
     "mov %rax,%rdi \n"
     // 2nd argument to __libc_dlopen_mode(): flag = RTLD_LAZY
-    "movabs $1,%rsi \n"
+    "movabs $0x80000001,%rsi \n"
     // call __libc_dlopen_mode()
     "callq *%r9 \n"
     // restore old r9 value
@@ -95,9 +97,14 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
     "pop %rbx"
     );
 
-    // we already overwrote the RET instruction at the end of this function
-    // with an INT 3, so at this point the injector will regain control of
-    // the target's execution.
+    asm(
+            "int $3 \n"
+            "nop \n"
+            "nop \n"
+            "nop \n"
+            "nop \n"
+    );
+    // using nop to locate where the shellcode start address and end address are
 }
 
 /*
@@ -113,7 +120,7 @@ void injectSharedLibrary_end()
 {
 }
 
-void restoreStateAndDetach(pid_t target, unsigned long addr, \
+static void restoreStateAndDetach(pid_t target, unsigned long addr, \
                     void* backup, int datasize, regs_type  oldregs)
 {
     ptraceSetMems(target, addr, backup, datasize);
@@ -121,14 +128,6 @@ void restoreStateAndDetach(pid_t target, unsigned long addr, \
     ptraceDetach(target);
 }
 
-void printMem(unsigned char *data, size_t len)
-{
-    for(size_t i=0; i<len; i++)
-    {
-        printf("0x%x ", data[i]);
-    }
-    printf("\n");
-}
 
 int injectLibrary(cuckoo_context *context)
 {
@@ -179,18 +178,11 @@ int injectLibrary(cuckoo_context *context)
     regs.rcx = lib_path_len;
     ptraceSetRegs(target_pid, &regs);
 
+    unsigned char *startAddr = searchUint(injectSharedLibrary, injectSharedLibrary_end, 0x90909090);
+    unsigned char *endAddr   = searchUint(startAddr+4, injectSharedLibrary_end, 0x90909090);
     // figure out the size of injectSharedLibrary() so we know how big of a buffer to allocate.
-    size_t injectSharedLibrary_size = (intptr_t)injectSharedLibrary_end - (intptr_t)injectSharedLibrary;
-    printf("[*] the bootstrap shellcode len is: %d\n", injectSharedLibrary_size);
-
-    // also figure out where the RET instruction at the end of
-    // injectSharedLibrary() lies so that we can overwrite it with an INT 3
-    // in order to break back into the target process. note that on x64,
-    // gcc and clang both force function addresses to be word-aligned,
-    // which means that functions are padded with NOPs. as a result, even
-    // though we've found the length of the function, it is very likely
-    // padded with NOPs, so we need to actually search to find the RET.
-    intptr_t injectSharedLibrary_ret = (intptr_t)findRet(injectSharedLibrary_end) - (intptr_t)injectSharedLibrary;
+    size_t injectSharedLibrary_size = (intptr_t)endAddr - (intptr_t)startAddr;
+    printf("[*] the bootstrap shellcode len is: %lu\n", injectSharedLibrary_size);
 
     // back up whatever data used to be at the address we want to modify.
     unsigned char* backup = malloc(injectSharedLibrary_size * sizeof(char));
@@ -198,13 +190,11 @@ int injectLibrary(cuckoo_context *context)
 
     // set up a buffer to hold the code we're going to inject into the
     // target process.
-    unsigned char* bootstrap_code = malloc(injectSharedLibrary_size * sizeof(char));
+    unsigned char* bootstrap_code = malloc((injectSharedLibrary_size+1) * sizeof(char));
     memset(bootstrap_code, 0, injectSharedLibrary_size * sizeof(char));
 
     // copy the code of injectSharedLibrary() to a buffer.
-    memcpy(bootstrap_code, injectSharedLibrary, injectSharedLibrary_size - 1);
-    // overwrite the RET instruction with an INT 3.
-    bootstrap_code[injectSharedLibrary_ret] = INTEL_INT3_INSTRUCTION;
+    memcpy(bootstrap_code, startAddr, injectSharedLibrary_size);
 
     // copy injectSharedLibrary()'s code to the target address inside the
     // target process' address space.
@@ -218,6 +208,7 @@ int injectLibrary(cuckoo_context *context)
     struct user_regs_struct malloc_regs;
     memset(&malloc_regs, 0, sizeof(struct user_regs_struct));
     ptraceGetRegs(target_pid, &malloc_regs);
+
     unsigned long long targetBuf = malloc_regs.rax;
     if(targetBuf == 0)
     {
@@ -227,7 +218,7 @@ int injectLibrary(cuckoo_context *context)
         free(bootstrap_code);
         return CUCKOO_PTRACE_ERROR;
     }
-//
+
     // if we get here, then malloc likely succeeded, so now we need to copy
     // the path to the shared library we want to inject into the buffer
     // that the target process just malloc'd. this is needed so that it can
@@ -245,9 +236,8 @@ int injectLibrary(cuckoo_context *context)
     // check out what the registers look like after calling dlopen.
     struct user_regs_struct dlopen_regs;
     memset(&dlopen_regs, 0, sizeof(struct user_regs_struct));
-    ptraceSetRegs(target_pid, &dlopen_regs);
+    ptraceGetRegs(target_pid, &dlopen_regs);
     unsigned long long libAddr = dlopen_regs.rax;
-
     // if rax is 0 here, then __libc_dlopen_mode failed, and we should bail
     // out cleanly.
     if(libAddr == 0)
@@ -258,6 +248,7 @@ int injectLibrary(cuckoo_context *context)
         free(bootstrap_code);
         return CUCKOO_PTRACE_ERROR;
     }
+
 //
 //    // now check /proc/pid/maps to see whether injection was successful.
 //    if(checkloaded(target, libname))
@@ -268,19 +259,12 @@ int injectLibrary(cuckoo_context *context)
 //    {
 //        fprintf(stderr, "could not inject \"%s\"\n", libname);
 //    }
-//
-    // as a courtesy, free the buffer that we allocated inside the target
-    // process. we don't really care whether this succeeds, so don't
-    // bother checking the return value.
+
     ptraceCont(target_pid);
 
-    // at this point, if everything went according to plan, we've loaded
-    // the shared library inside the target process, so we're done. restore
-    // the old state and detach from the target.
     restoreStateAndDetach(target_pid, addr, backup, injectSharedLibrary_size, old_regs);
     free(backup);
     free(bootstrap_code);
-//
-    return CUCKOO_OK;
 
+    return CUCKOO_OK;
 }
