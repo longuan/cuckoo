@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <dlfcn.h>
 #include <string.h>
+#include <sys/stat.h>
 #include "utils.h"
 
 int getNameByPid(char *name, size_t name_len, pid_t pid)
@@ -16,12 +18,6 @@ int getNameByPid(char *name, size_t name_len, pid_t pid)
 
     return CUCKOO_OK;
 }
-
-void usage(char *prog_name)
-{
-    printf("Usage:\n\t%s <pid>\n", prog_name);
-}
-
 
 int compareMems(unsigned char *old, unsigned char *new, size_t len)
 {
@@ -70,32 +66,24 @@ unsigned char* findRet(void* endAddr)
     {
         retInstAddr--;
     }
-
     return retInstAddr;
+}
+
+
+int getFileSize(char *filename)
+{
+    struct stat statbuf;
+    int ret;
+    ret = stat(filename, &statbuf);
+    if (ret != 0) return -1;
+    return statbuf.st_size;
 }
 
 void printMem(unsigned char *data, size_t len)
 {
-    for(size_t i=0; i<len; i++)
+    for (size_t i = 0; i < len; i++)
     {
         printf("0x%x ", data[i]);
     }
-
     printf("\n");
-}
-
-
-void* searchUint(void *startAddr, void* endAddr, uint32_t pattern)
-{
-    if(startAddr >endAddr || (endAddr-startAddr) < sizeof(uint32_t))
-        return NULL;
-
-    uint32_t *result = (uint32_t *)startAddr;
-    while((void *)result <= (endAddr-sizeof(uint32_t)))
-    {
-        if(*result == pattern)
-            return result;
-        result = (uint32_t *)((char *)result + 1);
-    }
-    return NULL;
 }

@@ -39,7 +39,7 @@ int _injectShellcode(cuckoo_context *context, unsigned char *shellcode, size_t s
     
     regs_type old_regs;
     ptraceGetRegs(target_pid, &old_regs);
-    printf("0x%llx\n", old_regs.rip);
+    printf("0x%x\n", old_regs.eip);
 
     regs_type *new_regs = (regs_type *)malloc(sizeof(regs_type));
     if(new_regs == NULL) oops("malloc error ", CUCKOO_SYSTEM_ERROR);
@@ -59,8 +59,8 @@ int _injectShellcode(cuckoo_context *context, unsigned char *shellcode, size_t s
         oops("shellcode write error: ", CUCKOO_PTRACE_ERROR);
     
     
-    new_regs->rip = shellcode_addr;
-    printf("[+] Setting RIP to 0x%llx\n\t", new_regs->rip);
+    new_regs->eip = shellcode_addr;
+    printf("[+] Setting EIP to 0x%x\n\t", new_regs->eip);
     ptraceSetRegs(target_pid, new_regs);
     // ptraceGetRegs(target_pid, &old_regs);
     // printf("the rip is 0x%llx\n", old_regs.rip);

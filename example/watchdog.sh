@@ -1,6 +1,6 @@
 #!/bin/sh
 
-PROC_NAME=test_process
+PROC_NAME=example_process
 
 
 while true; do
@@ -10,5 +10,5 @@ while true; do
         echo "starting process"
         sleep 3
     fi
-    sleep 5 # avoid create many process
+    sleep 5 # avoid creating many process
 done

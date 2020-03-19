@@ -1,6 +1,6 @@
 
-#ifndef __LIBTEST_H__
-#define __LIBTEST_H__
+#ifndef __LIBEXAMPLE_H__
+#define __LIBEXAMPLE_H__
 
 #ifdef __cplusplus
 extern "C" {

@@ -66,10 +66,9 @@ dkms.conf
 include/divisible/*
 bin/*
 lib/*
-test/test_runner
 
 ## Local 
-
+.vscode/*
 .idea/*
 .idea/workspace.xml
 
@@ -78,7 +77,6 @@ build/debug/*
 build/run/*
 build/bin/*
 
-include/*
 lib/*
 bin/*
 .bash/
