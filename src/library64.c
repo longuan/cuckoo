@@ -23,6 +23,13 @@ static void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
     //   rdx = address of __libc_dlopen_mode() in target process
     //   rcx = size of the path to the shared library we want to load
 
+    asm(
+        "nop \n"
+        "nop \n"
+        "nop \n"
+        "nop"
+    );
+    
     // save addresses of free() and __libc_dlopen_mode() on the stack for later use
     asm(
     // rsi is going to contain the address of free(). it's going to get wiped
@@ -101,25 +108,8 @@ static void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
     // the target's execution.
 }
 
-/*
- * injectSharedLibrary_end()
- *
- * This function's only purpose is to be contiguous to injectSharedLibrary(),
- * so that we can use its address to more precisely figure out how long
- * injectSharedLibrary() is.
- *
- */
-
 static void injectSharedLibrary_end()
 {
-}
-
-static void restoreStateAndDetach(pid_t target, unsigned long addr, \
-                    void* backup, int datasize, regs_type  oldregs)
-{
-    ptraceSetMems(target, addr, backup, datasize);
-    ptraceSetRegs(target, &oldregs);
-    ptraceDetach(target);
 }
 
 int injectLibrary(cuckoo_context *context)
@@ -128,23 +118,10 @@ int injectLibrary(cuckoo_context *context)
     char *lib_path = context->injected_filename;
     size_t lib_path_len = strlen(lib_path) + 1;
 
-    pid_t mypid = getpid();
-    unsigned long mylibc_addr = getLibcaddr(mypid);
-
-    unsigned long malloc_addr = getFunctionAddress("malloc");
-    unsigned long free_addr = getFunctionAddress("free");
-    unsigned long dlopen_addr = getFunctionAddress("__libc_dlopen_mode");
-
-    unsigned long malloc_offset = malloc_addr - mylibc_addr;
-    unsigned long free_offset = free_addr - mylibc_addr;
-    unsigned long dlopen_offset = dlopen_addr - mylibc_addr;
-
-    unsigned long target_libcAddr = getItemContainStr(context->mem_maps, "libc-")->start_addr;
-    printf("target libc address: %lx\n", target_libcAddr);
-    unsigned long target_mallocAddr = target_libcAddr + malloc_offset;
+    unsigned long target_mallocAddr = getTargetLibcallAddr(target_pid, "malloc");
     printf("target malloc address: %lx\n", target_mallocAddr);
-    unsigned long target_freeAddr = target_libcAddr + free_offset;
-    unsigned long target_dlopenAddr = target_libcAddr + dlopen_offset;
+    unsigned long target_freeAddr = getTargetLibcallAddr(target_pid, "free");
+    unsigned long target_dlopenAddr = getTargetLibcallAddr(target_pid, "__libc_dlopen_mode");
 
     ptraceAttach(target_pid);
 
@@ -157,7 +134,7 @@ int injectLibrary(cuckoo_context *context)
     memcpy(&regs, &old_regs, sizeof(struct user_regs_struct));
 
     // find a good address to copy code to
-    unsigned long addr = getExecutableItem(context->mem_maps)->start_addr + sizeof(long);
+    unsigned long addr = getMapsItemAddr(target_pid, "r-x") + sizeof(long);
 
     // now that we have an address to copy code to, set the target's rip to
     // it. we have to advance by 2 bytes here because rip gets incremented
@@ -176,13 +153,6 @@ int injectLibrary(cuckoo_context *context)
     size_t injectSharedLibrary_size = (intptr_t)injectSharedLibrary_end - (intptr_t)injectSharedLibrary;
     printf("[*] the bootstrap shellcode len is: %d\n", injectSharedLibrary_size);
 
-    // also figure out where the RET instruction at the end of
-    // injectSharedLibrary() lies so that we can overwrite it with an INT 3
-    // in order to break back into the target process. note that on x64,
-    // gcc and clang both force function addresses to be word-aligned,
-    // which means that functions are padded with NOPs. as a result, even
-    // though we've found the length of the function, it is very likely
-    // padded with NOPs, so we need to actually search to find the RET.
     intptr_t injectSharedLibrary_ret = (intptr_t)findRet(injectSharedLibrary_end) - (intptr_t)injectSharedLibrary;
 
     // back up whatever data used to be at the address we want to modify.
@@ -197,8 +167,12 @@ int injectLibrary(cuckoo_context *context)
     // copy the code of injectSharedLibrary() to a buffer.
     memcpy(bootstrap_code, injectSharedLibrary, injectSharedLibrary_size - 1);
 
-    // !!!! 
-    memset(bootstrap_code, 0x90, 0x10);
+    // memset(bootstrap_code, 0x90, 0x10);
+    size_t nops_start = indexOfBytes(bootstrap_code, injectSharedLibrary_size, "\x90\x90\x90\x90", 4);
+    // printf("the nops start: %d\n", nops_start);
+    for (size_t i = 0; i < nops_start; i++)
+        bootstrap_code[i] = '\x90';
+
     // overwrite the RET instruction with an INT 3.
     bootstrap_code[injectSharedLibrary_ret] = INTEL_INT3_INSTRUCTION;
 
@@ -218,20 +192,12 @@ int injectLibrary(cuckoo_context *context)
     if(targetBuf == 0)
     {
         fprintf(stderr, "malloc() failed to allocate memory\n");
-        restoreStateAndDetach(target_pid, addr, backup, injectSharedLibrary_size, old_regs);
+        restoreStateAndDetach(target_pid, addr, backup, injectSharedLibrary_size, &old_regs);
         free(backup);
         free(bootstrap_code);
         return CUCKOO_PTRACE_ERROR;
     }
-//
-    // if we get here, then malloc likely succeeded, so now we need to copy
-    // the path to the shared library we want to inject into the buffer
-    // that the target process just malloc'd. this is needed so that it can
-    // be passed as an argument to __libc_dlopen_mode later on.
 
-    // read the current value of rax, which contains malloc's return value,
-    // and copy the name of our shared library to that address inside the
-    // target process.
     ptraceSetMems(target_pid, targetBuf, lib_path, lib_path_len);
 
     // continue the target's execution again in order to call
@@ -249,31 +215,15 @@ int injectLibrary(cuckoo_context *context)
     if(libAddr == 0)
     {
         fprintf(stderr, "__libc_dlopen_mode() failed to load %s\n", lib_path);
-        restoreStateAndDetach(target_pid, addr, backup, injectSharedLibrary_size, old_regs);
+        restoreStateAndDetach(target_pid, addr, backup, injectSharedLibrary_size, &old_regs);
         free(backup);
         free(bootstrap_code);
         return CUCKOO_PTRACE_ERROR;
     }
-//
-//    // now check /proc/pid/maps to see whether injection was successful.
-//    if(checkloaded(target, libname))
-//    {
-//        printf("\"%s\" successfully injected\n", libname);
-//    }
-//    else
-//    {
-//        fprintf(stderr, "could not inject \"%s\"\n", libname);
-//    }
-//
-    // as a courtesy, free the buffer that we allocated inside the target
-    // process. we don't really care whether this succeeds, so don't
-    // bother checking the return value.
+
     ptraceCont(target_pid);
 
-    // at this point, if everything went according to plan, we've loaded
-    // the shared library inside the target process, so we're done. restore
-    // the old state and detach from the target.
-    restoreStateAndDetach(target_pid, addr, backup, injectSharedLibrary_size, old_regs);
+    restoreStateAndDetach(target_pid, addr, backup, injectSharedLibrary_size, &old_regs);
     free(backup);
     free(bootstrap_code);
 //

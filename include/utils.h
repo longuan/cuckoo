@@ -5,8 +5,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#define oops(msg,code) {perror(msg);exit(code);}
+#include <errno.h>
+#define oops(msg,code) do{if(errno)perror(msg);exit(code);}while(0)
 
 enum {
     CUCKOO_OK = 0,
@@ -20,22 +20,24 @@ enum {
 #define INTEL_RET_INSTRUCTION 0xc3
 #define INTEL_INT3_INSTRUCTION 0xcc
 
-
-#include <sys/reg.h>
 #include <sys/user.h>
-typedef struct user_regs_struct regs_type;
 
 #include <sys/types.h>
 int getNameByPid(char *name, size_t name_len, pid_t pid);
 
 int compareMems(unsigned char *old, unsigned char *new, size_t len);
 unsigned long getFunctionAddress(char* func_name);
-unsigned long getLibcaddr(pid_t pid);
+unsigned long getMapsItemAddr(pid_t pid, const char *str);
 unsigned char* findRet(void* endAddr);
 
 int getFileSize(char *filename);
 
 void printMem(unsigned char *data, size_t len);
+
+void *getTargetLibcallAddr(pid_t target_pid, const char *func_name);
+
+int indexOfBytes(unsigned char *src, size_t src_len, unsigned char *target, size_t target_len);
+
 #ifdef __cplusplus
 }
 #endif

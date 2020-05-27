@@ -14,32 +14,35 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 # aux_source_directory(. SRC_FILES)
 set(COMMON_FILES 
     ${PROJECT_SOURCE_DIR}/src/utils.c 
-    ${PROJECT_SOURCE_DIR}/src/maps.c 
     ${PROJECT_SOURCE_DIR}/src/main.c 
     ${PROJECT_SOURCE_DIR}/src/inject.c 
-    ${PROJECT_SOURCE_DIR}/src/cuckoo.c
 )
 
-set(CMAKE_VERBOSE_MAKEFILE ON)
+# set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g")
+
 
 # set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ../build/)
+
 
 if(ARCH STREQUAL x86)
     set(SRC_FILES 
         ${COMMON_FILES} 
-        ./src/shellcode32.c 
-        ./src/library32.c
+        ${PROJECT_SOURCE_DIR}/src/shellcode32.c 
+        ${PROJECT_SOURCE_DIR}/src/library32.c
+        ${PROJECT_SOURCE_DIR}/src/elfinject32.c
     )
     # add_compile_options(-m32)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32")
 elseif(ARCH STREQUAL x64)
     set(SRC_FILES 
         ${COMMON_FILES} 
-        ./src/shellcode.c 
-        ./src/library.c
+        ${PROJECT_SOURCE_DIR}/src/shellcode64.c 
+        ${PROJECT_SOURCE_DIR}/src/library64.c
+        ${PROJECT_SOURCE_DIR}/src/elfinject64.c
     )
 else()
-    MESSAGE(FATAL_ERROR  "cmake . -DARCH={arch}.  arch is x86 or x64")
+    message(FATAL_ERROR  "cmake . -DARCH={arch}.  arch is x86 or x64")
 endif()
 
 message(STATUS "generate ELF into ${PROJECT_SOURCE_DIR}/build/bin/cuckoo")

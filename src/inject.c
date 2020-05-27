@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <sys/ptrace.h>
 #include <sys/wait.h>
 #include <time.h>
@@ -83,7 +82,7 @@ int ptraceCont(pid_t pid)
     checktargetsig(pid);
 }
 
-int ptraceGetRegs(pid_t pid, regs_type *regs) 
+int ptraceGetRegs(pid_t pid, struct user_regs_struct *regs)
 {
     printf("[+] Getting regs\n");
     long ret = ptrace(PTRACE_GETREGS, pid, NULL, regs);
@@ -91,7 +90,7 @@ int ptraceGetRegs(pid_t pid, regs_type *regs)
     return CUCKOO_OK;
 }
 
-int ptraceSetRegs(pid_t pid, regs_type *regs)
+int ptraceSetRegs(pid_t pid, struct user_regs_struct *regs)
 {
     printf("[-] Setting regs\n");
     long ret = ptrace(PTRACE_SETREGS, pid, NULL, regs);
@@ -143,4 +142,11 @@ int ptraceSetMems(pid_t pid, unsigned long address, unsigned char *data, size_t 
         ptrace(PTRACE_POKETEXT, pid, address+last_word, *word);
     }
     return CUCKOO_OK;
+}
+
+void restoreStateAndDetach(pid_t target, unsigned long addr, void *backup, int datasize, struct user_regs_struct *oldregs)
+{
+    ptraceSetMems(target, addr, backup, datasize);
+    ptraceSetRegs(target, oldregs);
+    ptraceDetach(target);
 }

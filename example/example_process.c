@@ -8,9 +8,6 @@ int func()
     while(1)
     {
         count++;
-  //      printf("Hello World! -- %d times\n", count);
-//        sleep(2);
-        // printf(" -- for %d times\n", count-1);
     }
     return 0;
 }

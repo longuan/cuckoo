@@ -13,10 +13,8 @@ static inline void setMemAndPrint(pid_t target_pid, unsigned long addr, unsigned
     ptraceSetMems(target_pid, addr, data, len);
 }
 
+// get shellcode asm code from input file, then invoke _injectShellcode
 int injectShellcode(cuckoo_context *context){
-    if (!context->mem_maps){
-        return CUCKOO_DEFAULT_ERROR;
-    }
     size_t shellcode_len = getFileSize(context->injected_filename);
     if(shellcode_len == -1) return CUCKOO_RESOURCE_ERROR;
     unsigned char *shellcode = malloc(shellcode_len);
@@ -36,21 +34,20 @@ int _injectShellcode(cuckoo_context *context, unsigned char *shellcode, size_t s
 {
     pid_t target_pid = context->target_pid;
     ptraceAttach(target_pid);
-    
-    regs_type old_regs;
+
+    struct user_regs_struct old_regs;
     ptraceGetRegs(target_pid, &old_regs);
     printf("0x%llx\n", old_regs.rip);
 
-    regs_type *new_regs = (regs_type *)malloc(sizeof(regs_type));
+    struct user_regs_struct *new_regs = (struct user_regs_struct *)malloc(sizeof(struct user_regs_struct));
     if(new_regs == NULL) oops("malloc error ", CUCKOO_SYSTEM_ERROR);
-    memcpy(new_regs, &old_regs, sizeof(regs_type));
+    memcpy(new_regs, &old_regs, sizeof(struct user_regs_struct));
 
     size_t new_len = ((shellcode_len >> 3) + 1) << 3;
     unsigned char *new_shellcode = (unsigned char *)malloc(new_len);
     memset(new_shellcode, '\x90', new_len);
     memcpy(new_shellcode, shellcode, shellcode_len);
-    unsigned long shellcode_addr = getExecutableItem(context->mem_maps)->end_addr-new_len;
-    // unsigned long addr = addr_item->end_addr - new_len;
+    unsigned long shellcode_addr = getMapsItemAddr(context->target_pid, "r-x");
 
     setMemAndPrint(target_pid, shellcode_addr, new_shellcode, new_len);
     unsigned char buffer[new_len];
@@ -62,9 +59,6 @@ int _injectShellcode(cuckoo_context *context, unsigned char *shellcode, size_t s
     new_regs->rip = shellcode_addr;
     printf("[+] Setting RIP to 0x%llx\n\t", new_regs->rip);
     ptraceSetRegs(target_pid, new_regs);
-    // ptraceGetRegs(target_pid, &old_regs);
-    // printf("the rip is 0x%llx\n", old_regs.rip);
-    // ptraceCont(target_pid);
 
     ptraceDetach(target_pid);
     free(new_shellcode);

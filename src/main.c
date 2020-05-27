@@ -9,16 +9,17 @@
 #include "cuckoo.h"
 #include "library.h"
 #include "shellcode.h"
+#include "elfinject.h"
 
 static void usage(char *argv0)
 {
-    printf("%s inject shellcode or library into another process\n\n"
+    printf("%s inject shellcode , library or ELF into another process\n\n"
             
             "Required parameters:\n"
-            "  -m mod        - injection mode (shellcode or lib)\n"
-            "  -w word       - word size (32 or 64)\n"
-            "  -i input      - shellcode or library file path\n"
-            "  -p pid        - target pid\n\n"
+            "  -m mod        - injection mode (shellcode ,lib or elf)\n"
+            // "  -w word       - word size (32 or 64)\n"
+            "  -i input      - injected file path\n"
+            "  -p pid        - injected process's pid\n\n"
             
             "Optional parameters:\n"
             "  -q quiet      - quiet mode\n",
@@ -27,28 +28,23 @@ static void usage(char *argv0)
     exit(1);
 }
 
+extern char *optarg;
+extern int optind;
+
 int main(int argc, char *argv[])
 {
     pid_t target_pid = 0;
-    int quiet = 0, word_size = 0;
+    int quiet = 0;
     char *mode = 0, *input = 0;
     char cmdline_filename[32];
 
     int opt;
-    while ((opt = getopt(argc, argv, "m:w:i:p:q")) > 0)
+    while ((opt = getopt(argc, argv, "m:i:p:q")) > 0)
     {
         switch (opt) {
             case 'm':
                 if(mode) oops("Multiple -m options", 1);
                 mode = optarg;
-                break;
-            case 'w':
-                if(word_size) oops("Multiple -w options", 1);
-                word_size = atoi(optarg);
-                if(!(word_size==32||word_size==64)) {
-                    printf("word size is 32 or 64\n");
-                    exit(1);
-                }
                 break;
             case 'i':
                 if(input) oops("Multiple -i options", 1);
@@ -78,8 +74,7 @@ int main(int argc, char *argv[])
     
     cuckoo_context context;
     context.target_pid = target_pid;
-    context.mem_maps = mapsParse(target_pid);
-    context.word_size = word_size;
+    // context.word_size = word_size;
     context.injected_filename = input;
     context.inject_type = -1;
 
@@ -87,17 +82,18 @@ int main(int argc, char *argv[])
         context.inject_type = 0;
         int result = injectShellcode(&context);
         if(result != CUCKOO_OK)
-            oops("error", CUCKOO_DEFAULT_ERROR);
-    }
-    if((!strcmp(mode, "lib")) || (!strcmp(mode, "library"))){
+            oops("error", result);
+    }else if((!strcmp(mode, "lib")) || (!strcmp(mode, "library"))){
         context.inject_type = 1;
         int result = injectLibrary(&context);
         if (result != CUCKOO_OK)
-            oops("error", CUCKOO_DEFAULT_ERROR);
+            oops("error", result);
+    } else if(!(strcmp(mode, "elf"))) {
+        context.inject_type = 2;
+        int result = injectELF(&context);
+        if (result != CUCKOO_OK)
+            oops("error ", result);
     }
-    // char process_name[32];
-    // getNameByPid(process_name, 32, target_pid);
-    // printf("[*] injecting %s into %s\n", lib_path, process_name);
     return 0;
 }
 

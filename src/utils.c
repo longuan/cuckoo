@@ -35,22 +35,22 @@ unsigned long getFunctionAddress(char* func_name)
     return (unsigned long)funcAddr;
 }
 
-unsigned long getLibcaddr(pid_t pid)
+unsigned long getMapsItemAddr(pid_t pid, const char *str)
 {
     FILE *fp;
     char filename[30];
-    char line[850];
+    char line[128];
     unsigned long addr = 0;
     char perms[5];
-    char* modulePath;
+    char *modulePath;
     sprintf(filename, "/proc/%d/maps", pid);
     fp = fopen(filename, "r");
-    if(fp == NULL)
+    if (fp == NULL)
         exit(1);
-    while(fgets(line, 850, fp) != NULL)
+    while (fgets(line, 128, fp) != NULL)
     {
         sscanf(line, "%lx-%*lx %*s %*s %*s %*d", &addr);
-        if(strstr(line, "libc-") != NULL)
+        if (strstr(line, str) != NULL)
         {
             break;
         }
@@ -86,4 +86,39 @@ void printMem(unsigned char *data, size_t len)
         printf("0x%x ", data[i]);
     }
     printf("\n");
+}
+
+void *getTargetLibcallAddr(pid_t target_pid, const char *func_name)
+{
+    // mypid and mylibc_addr could be global vars.
+    pid_t mypid = getpid();
+    unsigned long mylibc_addr = getMapsItemAddr(mypid, "libc-");
+    unsigned long myfunc_addr = getFunctionAddress(func_name);
+    if (!myfunc_addr)
+        return 0;
+    unsigned long offset = myfunc_addr - mylibc_addr;
+
+    unsigned long target_libcAddr = getMapsItemAddr(target_pid, "libc-");
+    printf("target libc address: %lx\n", target_libcAddr);
+    
+    return target_libcAddr + offset;
+}
+
+int indexOfBytes(unsigned char *src, size_t src_len, unsigned char *target, size_t target_len)
+{
+    for(size_t i=0; i<src_len-target_len; i++)
+    {
+        if (src[i] == target[0])
+        {
+            size_t j;
+            for (j = 1; j < target_len; j++)
+            {
+                if(target[j] != src[i+j])
+                    break;
+            }
+            if(j == target_len)
+                return i;
+        }
+    }
+    return -1;
 }
